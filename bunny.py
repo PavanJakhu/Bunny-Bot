@@ -144,4 +144,4 @@ async def unregisterPicarto(name : str):
         else:
             await bunnyBot.say("You are not in the database.")
 
-bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.C7CRxQ.tZQySLrg1dTTYCn60Pf06l25KbQ")
+bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.C7zX_A.MTzQzRnqWm3Qaz7XRK9ZAV44qw4")
