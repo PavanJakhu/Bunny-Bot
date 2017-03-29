@@ -1,71 +1,122 @@
 import time
 import random
 import discord
+import threading
+import asyncio
+import urllib.request
+import json
 from discord.ext.commands import Bot
 
 
 class Util:
     prevAccessPet = 0
     prevAccessCarrot = 0
-
+    jsonData = None
+    botCommandsChannel = None
+    streamChannel = None
+    livePicarto = {}
 
 bunnyBot = Bot(command_prefix="bunbun.")
-badWords = ["nigger", "nigga", "faggot", "fag", "retard", "retarded"]
-petSayings = ["*Nuzzles hand*", "*Ears twitch*", "H-hey!", "*Tail twitches*", "*Tail wiggles*",
-              "\"C-can I have a carrot now?\"", "*puffs cheeks*", "\"Eep! That tickles!\"", "\"N-not there!\"",
-              "*Scurries and hides*", "\"Sure just.. softly ok?\"", "\"Not the tail!\"",
-              "\"You messed up my hair!\" *puffs cheeks*", "\"Where do you think you\'re touching?!\"",
-              "*Hops in place*", "*Wiggles*", "*Nuzzles*", "*Ears pull back* \"M-mebbe later?\"", "\"Thank you ~<3\"",
-              ">:T", "Eek, your hand is sticky D:!", "Too hard D:!", "^_^ it feels nice.", "You're sweet :>",
-              "T-that's a bit more than petting >o<", "Only Foxy can touch there >:T", "Hhhmmmm! :>", "*pets back*",
-              "Just wait till you see my new commands!", "Y-you're not Foxy! >:O"]
-carrotSayings = ["Yay!", "Thank youuu! ~", "Just one?", "<3!", "Yum!", "T-that's not a carrot!", "^___^", "I did good?",
-                 "Totally worth it!", "*drool* \"S-sorry!\"", "*wiggles*", "You're nice. I like you!", "YES!",
-                 "T-this one smells funny...", "*grabs and scurries off*", "Wheeee!", "Thanks!", "*noms*",
-                 "That's a big one! :O!", "W-where are you trying to put that? >:T"]
 util = Util()
 
 
-@bunnyBot.event
-async def on_server_join(server):
-    botChannel = discord.utils.get(server.channels, name="bot_commands", type=discord.ChannelType.text)
-    if botChannel is None:
-        everyone = discord.PermissionOverwrite(read_messages=True, send_messages=False)
-        bunnyBot.create_channel(server, "bot_commands", everyone)
+def check_picarto_notifications():
+    threading.Timer(1, check_picarto_notifications).start()
+    for streamer in Util.jsonData["picarto streamers"]:
+        response = urllib.request.urlopen("https://api.picarto.tv/v1/channel/name/" + streamer)
+        data = json.load(response)
+        if data["online"] and data["name"] not in Util.livePicarto:
+            desc = "**{0}**\nViewers: {1}\nTotal views: {2}\nFollowers: {3}\nCategory: {4}\nCommissions: {5}".\
+                format(data["title"], data["viewers"], data["viewers_total"], data["followers"], data["category"],
+                       data["commissions"]
+                       )
+            em = discord.Embed(
+                title=data["name"] + " has started streaming!",
+                description=desc,
+                url="https://picarto.tv/" + data["name"],
+            )
+            imageURL = "https://picarto.tv/user_data/usrimg/{0}/dsdefault.jpg".format(data["name"].lower())
+            em.set_thumbnail(url=imageURL)
+            coro = bunnyBot.send_message(Util.streamChannel, embed=em)
+            fut = asyncio.run_coroutine_threadsafe(coro, bunnyBot.loop)
+            try:
+                result = fut.result(15)
+            except asyncio.TimeoutError:
+                print('The coroutine took too long, cancelling the task...')
+                fut.cancel()
+            except Exception as exc:
+                print('The coroutine raised an exception: {!r}'.format(exc))
+            else:
+                Util.livePicarto[data["name"]] = result
+        elif not data["online"] and data["name"] in Util.livePicarto:
+            coro = bunnyBot.delete_message(Util.livePicarto[data["name"]])
+            fut = asyncio.run_coroutine_threadsafe(coro, bunnyBot.loop)
+            try:
+                result = fut.result(15)
+            except asyncio.TimeoutError:
+                print('The coroutine took too long, cancelling the task...')
+                fut.cancel()
+            except Exception as exc:
+                print('The coroutine raised an exception: {!r}'.format(exc))
+            else:
+                del Util.livePicarto[data["name"]]
 
+
+@bunnyBot.event
+async def on_ready():
+    print("Ready!")
+
+    with open("data.json") as json_file:
+        Util.jsonData = json.load(json_file)
+
+    print("Length of Picarto IDs: " + str(len(Util.jsonData["picarto streamers"])))
+
+    for server in bunnyBot.servers:
+        Util.botCommandsChannel = discord.utils.get(server.channels, name="bot_commands", type=discord.ChannelType.text)
+        Util.streamChannel = discord.utils.get(server.channels, name="stream_announcements",
+                                               type=discord.ChannelType.text)
+
+    threading.Timer(1, check_picarto_notifications).start()
 
 @bunnyBot.event
 async def on_message(msg):
-    for x in badWords:
-        if x in msg.content.casefold():
-            await bunnyBot.delete_message(msg)
+    if msg.channel.name != "bot_commands":
+        for x in Util.jsonData["bad words"]:
+            if x in msg.content.casefold():
+                await bunnyBot.delete_message(msg)
 
-            fmt = '{0.author} said a bad word: \"{0.content}\" at {0.timestamp} in {0.channel.name}'
-            fmt = fmt.format(msg)
-            print(fmt)
-            fmt = fmt.casefold()
-            for x in badWords:
-                fmt = fmt.replace(x, "BAD WORD")
-            await bunnyBot.send_message(
-                discord.utils.get(msg.server.channels, name="bot_commands", type=discord.ChannelType.text),
-                fmt)
+                fmt = '{0.author} said a bad word: \"{0.content}\" in {0.channel.name}'
+                fmt = fmt.format(msg)
+                await bunnyBot.send_message(Util.botCommandsChannel, fmt)
 
-            break
+                break
 
     await bunnyBot.process_commands(msg)
 
 
-@bunnyBot.command(description="Let's you pet the adorable Bunny Bot!")
+@bunnyBot.command(description="Let's you pet the adorable bunny bot!")
 async def pet():
     if time.time() - util.prevAccessPet > 60:
-        await bunnyBot.say(random.choice(petSayings))
+        await bunnyBot.say(random.choice(Util.jsonData["pet sayings"]))
         util.prevAccessPet = time.time()
 
 
 @bunnyBot.command(description="Let's you give a carrot to Bunny!")
 async def carrot():
     if time.time() - util.prevAccessCarrot > 60:
-        await bunnyBot.say(random.choice(carrotSayings))
+        await bunnyBot.say(random.choice(Util.jsonData["carrot sayings"]))
         util.prevAccessCarrot = time.time()
+
+
+@bunnyBot.command(description="Register your Picarto for notications.")
+async def registerPicarto(name : str):
+    if name not in Util.jsonData["picarto streamers"]:
+        Util.jsonData["picarto streamers"].append(name)
+        with open("data.json", 'w') as outfile:
+            json.dump(Util.jsonData, outfile)
+
+        await bunnyBot.say("Added your Picarto!")
+    else:
+        await bunnyBot.say("You are already registered.")
 
 bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.C7CRxQ.tZQySLrg1dTTYCn60Pf06l25KbQ")

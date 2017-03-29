@@ -16,7 +16,7 @@ class Util:
     streamChannel = None
     livePicarto = {}
 
-bunnyBot = Bot(command_prefix="fox.")
+bunnyBot = Bot(command_prefix="bunbun.")
 util = Util()
 
 
@@ -80,21 +80,16 @@ async def on_ready():
 
 @bunnyBot.event
 async def on_message(msg):
-    for x in Util.jsonData["bad words"]:
-        if x in msg.content.casefold():
-            await bunnyBot.delete_message(msg)
+    if msg.channel.name != "bot_commands":
+        for x in Util.jsonData["bad words"]:
+            if x in msg.content.casefold():
+                await bunnyBot.delete_message(msg)
 
-            fmt = '{0.author} said a bad word: \"{0.content}\" at {0.timestamp} in {0.channel.name}'
-            fmt = fmt.format(msg)
-            print(fmt)
-            fmt = fmt.casefold()
-            for badWord in Util.jsonData["bad words"]:
-                fmt = fmt.replace(badWord, "BAD WORD")
-            await bunnyBot.send_message(
-                discord.utils.get(msg.server.channels, name="bot_commands", type=discord.ChannelType.text),
-                fmt)
+                fmt = '{0.author} said a bad word: \"{0.content}\" in {0.channel.name}'
+                fmt = fmt.format(msg)
+                await bunnyBot.send_message(Util.botCommandsChannel, fmt)
 
-            break
+                break
 
     await bunnyBot.process_commands(msg)
 
@@ -124,4 +119,4 @@ async def registerPicarto(name : str):
     else:
         await bunnyBot.say("You are already registered.")
 
-bunnyBot.run("Mjk0MjM1NzE1MDU3ODc2OTk1.C7SM4Q.9uGEFeWJieeOBQqNiNk8szndLYc")
+bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.C7CRxQ.tZQySLrg1dTTYCn60Pf06l25KbQ")
