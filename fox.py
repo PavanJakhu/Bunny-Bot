@@ -16,16 +16,16 @@ class Util:
     streamChannel = None
     livePicarto = {}
 
-bunnyBot = Bot(command_prefix="bunbun.")
+bunnyBot = Bot(command_prefix="fox.")
 util = Util()
 
 
 def check_picarto_notifications():
     threading.Timer(1, check_picarto_notifications).start()
     for streamer in Util.jsonData["picarto streamers"]:
-        response = urllib.request.urlopen("https://api.picarto.tv/v1/channel/name/" + streamer)
+        response = urllib.request.urlopen("https://api.picarto.tv/v1/channel/name/" + streamer.lower())
         data = json.load(response)
-        if data["online"] and data["name"] not in Util.livePicarto:
+        if data["online"] and data["name"].lower() not in Util.livePicarto:
             desc = "**{0}**\nViewers: {1}\nTotal views: {2}\nFollowers: {3}\nCategory: {4}\nCommissions: {5}".\
                 format(data["title"], data["viewers"], data["viewers_total"], data["followers"], data["category"],
                        data["commissions"]
@@ -47,9 +47,9 @@ def check_picarto_notifications():
             except Exception as exc:
                 print('The coroutine raised an exception: {!r}'.format(exc))
             else:
-                Util.livePicarto[data["name"]] = result
-        elif not data["online"] and data["name"] in Util.livePicarto:
-            coro = bunnyBot.delete_message(Util.livePicarto[data["name"]])
+                Util.livePicarto[data["name"].lower()] = result
+        elif not data["online"] and data["name"].lower() in Util.livePicarto:
+            coro = bunnyBot.delete_message(Util.livePicarto[data["name"].lower()])
             fut = asyncio.run_coroutine_threadsafe(coro, bunnyBot.loop)
             try:
                 result = fut.result(15)
@@ -59,7 +59,7 @@ def check_picarto_notifications():
             except Exception as exc:
                 print('The coroutine raised an exception: {!r}'.format(exc))
             else:
-                del Util.livePicarto[data["name"]]
+                del Util.livePicarto[data["name"].lower()]
 
 
 @bunnyBot.event
@@ -110,13 +110,38 @@ async def carrot():
 
 @bunnyBot.command(description="Register your Picarto for notications.")
 async def registerPicarto(name : str):
-    if name not in Util.jsonData["picarto streamers"]:
-        Util.jsonData["picarto streamers"].append(name)
-        with open("data.json", 'w') as outfile:
-            json.dump(Util.jsonData, outfile)
-
-        await bunnyBot.say("Added your Picarto!")
+    try:
+        urllib.request.urlopen("https://api.picarto.tv/v1/channel/name/" + name.lower())
+    except urllib.error.HTTPError:
+        await bunnyBot.say("This account does not exist.")
     else:
-        await bunnyBot.say("You are already registered.")
+        if name not in Util.jsonData["picarto streamers"]:
+            Util.jsonData["picarto streamers"].append(name.lower())
+            with open("data.json", 'w') as outfile:
+                json.dump(Util.jsonData, outfile)
 
-bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.C7CRxQ.tZQySLrg1dTTYCn60Pf06l25KbQ")
+            await bunnyBot.say("Added your Picarto!")
+        else:
+            await bunnyBot.say("You are already registered.")
+
+
+@bunnyBot.command(description="Unregister your Picarto for notications.")
+async def unregisterPicarto(name : str):
+    try:
+        urllib.request.urlopen("https://api.picarto.tv/v1/channel/name/" + name)
+    except urllib.error.HTTPError:
+        await bunnyBot.say("This account does not exist.")
+    else:
+        if name in Util.jsonData["picarto streamers"]:
+            if name.lower() in Util.livePicarto:
+                await bunnyBot.delete_message(Util.livePicarto[name.lower()])
+                del Util.livePicarto[name.lower()]
+            del Util.jsonData["picarto streamers"][Util.jsonData["picarto streamers"].index(name.lower())]
+            with open("data.json", 'w') as outfile:
+                json.dump(Util.jsonData, outfile)
+
+            await bunnyBot.say("Removed from notifications.")
+        else:
+            await bunnyBot.say("You are not in the database.")
+
+bunnyBot.run("Mjk0MjM1NzE1MDU3ODc2OTk1.C7zUOQ.UvSHqJpg5IIl0GYXsacnCD1bPzs")
