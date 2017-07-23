@@ -61,7 +61,7 @@ async def on_message(msg):
                     util.prevCS = data["cs"]
                     util.prevAccessCS = time.time()
 
-                    await bunnyBot.say(data["output"])
+                    await bunnyBot.send_message(msg.channel, data["output"])
 
     #Delete bad messages
     if msg.channel.name != "bot_commands":
