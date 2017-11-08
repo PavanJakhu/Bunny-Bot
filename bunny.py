@@ -5,6 +5,7 @@ import random
 import json
 import aiohttp
 import logging
+import re
 
 
 class Util:
@@ -19,6 +20,10 @@ class Util:
 bunnyBot = Bot(command_prefix="bunbun.")
 client = aiohttp.ClientSession()
 util = Util()
+
+
+def findWholeWord(word):
+    return re.compile(r'\b({0})\b'.format(word), flags=re.IGNORECASE).search
 
 
 @bunnyBot.event
@@ -66,7 +71,7 @@ async def on_message(msg):
     #Delete bad messages
     if msg.channel.name != "bot_commands":
         for x in Util.jsonData["bad words"]:
-            if x in msg.content.casefold():
+            if findWholeWord(x)(msg.content) != None:
                 await bunnyBot.delete_message(msg)
 
                 fmt = '{0.author} said a bad word: \"{0.content}\" in {0.channel.name}'
@@ -107,4 +112,4 @@ logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
-bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.C7zX_A.MTzQzRnqWm3Qaz7XRK9ZAV44qw4")
+bunnyBot.run("MjkzMTM0NTYyOTkxNTM4MTc2.DOQDWg.NToRN8LBxvmGWIb_iQa7qTPJNKk")

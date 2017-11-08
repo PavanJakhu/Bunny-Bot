@@ -1,3 +1,6 @@
+.vs/
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -9,6 +12,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
+bunbot/
 build/
 develop-eggs/
 dist/
